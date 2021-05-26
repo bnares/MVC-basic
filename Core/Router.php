@@ -30,8 +30,18 @@ class Router
      * @return void
      */
 	 
-	 public function add($route, $params)
+	 public function add($route, $params= [])
 	 {
+		
+		// Convert the route to a regular expression: escape forward slashes
+		$route = preg_replace('/\//', '\\/', $route);
+		// Convert variables e.g. {controller}
+		$route = preg_replace('/\{([a-z]+)\}/', '(?<\1>[a-z]+)', $route);
+		// Convert variables with custom regular expressions e.g. {id:\d+}
+        $route = preg_replace('/\{([a-z]+):([^\}]+)\}/', '(?P<\1>\2)', $route);
+		// Add start and end delimiters, and case insensitive flag
+		$route = '/^'.$route.'$/i';
+		
 		$this->routes[$route] = $params;
 	 }
 	 
@@ -56,14 +66,25 @@ class Router
 	 
 	 public function match($url)
 	 {
-		foreach($this ->routes as $route =>$params)
+		
+		
+		// Match to the fixed URL format /controller/action
+        //$reg_exp = "/^(?P<controller>[a-z-]+)\/(?P<action>[a-z-]+)$/";
+		
+		foreach($this ->routes as $route=>$match)
 		{
-			if($url == $route)
+			if(preg_match($route, $url, $matches))
 			{
-				$this ->params = $params;
+				foreach($matches as $key=>$param)
+				{
+					if(is_string($key))
+					{
+						$match[$key] = $param; 
+					}
+				}
+				$this ->params = $match;
 				return true;
 			}
-			
 		}
 		return false;
 		 
@@ -77,6 +98,51 @@ class Router
 	public function getParams()
 	{
 		return $this ->params;
+	}
+	
+	
+	public function dispatch($url)
+	{
+		
+		if($this->match($url))
+		{
+			$controller=$this->params['controller'];
+			$controller = $this -> convertToStudlyCaps($controller);
+			if(class_exists($controller))
+			{
+				$controller_object = new $controller();
+				$action = $this->params['action'];
+				$action = $this ->convertToCamelCase($action);
+				if(is_callable($controller_object, $action))
+				{
+					$controller_object->$action();
+				}
+				else{
+					echo "<br>No method $params[action] has been found";
+				}
+			}
+			else{
+				echo "<br>No class $controller_object has been found";
+			}
+		}
+		
+		else{
+			echo "<br>No rutch has benn found";
+		}
+	}
+	
+	
+	//convert words with '-' inside to words with spaces
+	protected function convertToStudlyCaps($string)
+	{
+		return str_replace(' ','',ucwords(str_replace('-',' ',$string)));
+	}
+	
+	protected function convertToCamelCase($string)
+	{
+		$string = $this->convertToStudlyCaps($string);
+		$string = lcfirst($string);
+		return $string;
 	}
 	 
 	
