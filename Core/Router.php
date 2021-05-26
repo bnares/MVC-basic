@@ -1,5 +1,7 @@
 <?php
 
+namespace Core;
+
 /**
  *ROuter
  *
@@ -36,7 +38,7 @@ class Router
 		// Convert the route to a regular expression: escape forward slashes
 		$route = preg_replace('/\//', '\\/', $route);
 		// Convert variables e.g. {controller}
-		$route = preg_replace('/\{([a-z]+)\}/', '(?<\1>[a-z]+)', $route);
+		$route = preg_replace('/\{([a-z]+)\}/', '(?<\1>[a-z-]+)', $route);
 		// Convert variables with custom regular expressions e.g. {id:\d+}
         $route = preg_replace('/\{([a-z]+):([^\}]+)\}/', '(?P<\1>\2)', $route);
 		// Add start and end delimiters, and case insensitive flag
@@ -79,7 +81,7 @@ class Router
 				{
 					if(is_string($key))
 					{
-						$match[$key] = $param; 
+						$match[$key] = $param; //matchh to nie jest to samo co match z pierwszej petli foreach jak widac
 					}
 				}
 				$this ->params = $match;
@@ -108,26 +110,31 @@ class Router
 		{
 			$controller=$this->params['controller'];
 			$controller = $this -> convertToStudlyCaps($controller);
+			$controller = "App\Controllers\\$controller";
 			if(class_exists($controller))
 			{
 				$controller_object = new $controller();
 				$action = $this->params['action'];
 				$action = $this ->convertToCamelCase($action);
-				if(is_callable($controller_object, $action))
+				if(is_callable([$controller_object, $action]))
 				{
 					$controller_object->$action();
+					//echo "<br>Method $action (in controller $controller)";
+					//echo "<br>".$_SERVER['QUERY_STRING']." , method: ".$action;
 				}
 				else{
-					echo "<br>No method $params[action] has been found";
+					echo "<br>No method has been found";
+					echo "<br>Method $action (in controller $controller) not found";
+					//echo "<br>".$_SERVER['QUERY_STRING']." ".$action;
 				}
 			}
 			else{
-				echo "<br>No class $controller_object has been found";
+				echo "<br>No class has been found";
 			}
 		}
 		
 		else{
-			echo "<br>No rutch has benn found";
+			echo "<br>No route has benn found ".$url;
 		}
 	}
 	
@@ -140,9 +147,9 @@ class Router
 	
 	protected function convertToCamelCase($string)
 	{
-		$string = $this->convertToStudlyCaps($string);
-		$string = lcfirst($string);
-		return $string;
+		//$string = $this->convertToStudlyCaps($string);
+		return lcfirst($this->convertToStudlyCaps($string));
+		//return $string;
 	}
 	 
 	
