@@ -81,7 +81,7 @@ class Router
 				{
 					if(is_string($key))
 					{
-						$match[$key] = $param; //matchh to nie jest to samo co match z pierwszej petli foreach jak widac
+						$match[$key] = $param; //match to jest to samo co match z pierwszej petli foreach jak widac
 					}
 				}
 				$this ->params = $match;
@@ -106,22 +106,30 @@ class Router
 	public function dispatch($url)
 	{
 		
+		$url = $this -> removeQueryStringVariables($url);
 		if($this->match($url))
 		{
 			$controller=$this->params['controller'];
 			$controller = $this -> convertToStudlyCaps($controller);
-			$controller = "App\Controllers\\$controller";
+			//$controller = "App\Controllers\\$controller";  // the "//" before $controller menas the names space for this class is not in Core namespace where this file (Router.php) is existing but look for this function in App\Controllers namespace
+			$controller = $this->getNamespace().$controller;
 			if(class_exists($controller))
 			{
-				$controller_object = new $controller();
+				$controller_object = new $controller($this->params);
 				$action = $this->params['action'];
 				$action = $this ->convertToCamelCase($action);
-				if(is_callable([$controller_object, $action]))
+				
+				if(preg_match('/action$/i', $action)==0)  //dzieki temu z reki nie mozna ominac sobie __call metod ktora dodaje suffix action i loguje dalej to nam zapobiega wpisaniu z reki na koncu action dzieki temu trzbea przejsc przez ta linijke
 				{
 					$controller_object->$action();
+				}
+				
+				//if(is_callable([$controller_object, $action])) wersja przed preg_match('/action$/i')
+				//{
+					//$controller_object->$action();
 					//echo "<br>Method $action (in controller $controller)";
 					//echo "<br>".$_SERVER['QUERY_STRING']." , method: ".$action;
-				}
+				//}
 				else{
 					echo "<br>No method has been found";
 					echo "<br>Method $action (in controller $controller) not found";
@@ -150,6 +158,34 @@ class Router
 		//$string = $this->convertToStudlyCaps($string);
 		return lcfirst($this->convertToStudlyCaps($string));
 		//return $string;
+	}
+	
+	
+	protected function removeQueryStringVariables($url)
+	{
+		if($url !=''){
+			$parts = explode('&', $url,2);
+			if(strpos($parts[0], '=')===false)
+			{
+				$url = $parts[0];
+				
+			}
+			else
+			{
+				$url ='';
+			}
+		}
+		return $url;
+	}
+	
+	protected function getNamespace()
+	{
+		$namespace = 'App\Controllers\\';
+		if(array_key_exists('namespace', $this->params)){
+			$namespace .= $this->params['namespace'].'\\';
+		}
+		return $namespace;
+		
 	}
 	 
 	
